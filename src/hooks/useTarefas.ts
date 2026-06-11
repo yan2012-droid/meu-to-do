@@ -1,76 +1,85 @@
-import { useQuery, useMutation, QueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
+export interface Tarefa {
+  id: string;
+  user_id: string;
+  titulo: string;
+  status: string;
+  created_at: string;
+}
+
+/**
+ * Centraliza a lógica de tarefas: listagem, criação,
+ * atualização de status e exclusão.
+ * O RLS do Supabase garante que cada usuário só acessa as próprias tarefas.
+ */
 export const useTarefas = () => {
-  const queryClient = new QueryClient();
+  const queryClient = useQueryClient();
 
-  // Query for listing tarefas
-  const { data: tarefas, isLoading, isError, error } = useQuery({
+  // LISTAGEM — sem filtro por user_id no código: o RLS já filtra
+  const {
+    data: tarefas = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["tarefas"],
-    queryFn: async () => {
+    queryFn: async (): Promise<Tarefa[]> => {
       const { data, error } = await supabase
         .from("tarefas")
         .select("*")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (error) throw new Error(error.message);
+      return data ?? [];
     },
   });
 
-  // Mutation for creating a tarefa
-  const createTarefa = useMutation({
+  // CRIAÇÃO — não envia user_id (preenchido pelo default auth.uid() no banco)
+  const createMutation = useMutation({
     mutationFn: async (titulo: string) => {
-      const { data, error } = await supabase        .from("tarefas")
-        .insert({ titulo });
-      if (error) throw error;
-      return data;
+      const { error } = await supabase.from("tarefas").insert({ titulo });
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tarefas"] });
       toast.success("Tarefa criada com sucesso!");
-      queryClient.invalidateQueries(["tarefas"]);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Erro ao criar tarefa: ${error.message}`);
     },
   });
 
-  // Mutation for updating status
-  const updateStatus = useMutation({
-    mutationFn: async (id: string, status: string) => {
-      const { data, error } = await supabase
+  // ATUALIZAÇÃO DE STATUS
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase
         .from("tarefas")
         .update({ status })
         .eq("id", id);
-      if (error) throw error;
-      return data;
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      toast.success(`Status atualizado para ${status}`);
-      queryClient.invalidateQueries(["tarefas"]);
+      queryClient.invalidateQueries({ queryKey: ["tarefas"] });
+      toast.success("Status atualizado!");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Erro ao atualizar status: ${error.message}`);
     },
   });
 
-  // Mutation for deleting a tarefa
-  const deleteTarefa = useMutation({
+  // EXCLUSÃO
+  const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase
-        .from("tarefas")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-      return data;
+      const { error } = await supabase.from("tarefas").delete().eq("id", id);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      toast.success("Tarefa excluída com sucesso!");
-      queryClient.invalidateQueries(["tarefas"]);
+      queryClient.invalidateQueries({ queryKey: ["tarefas"] });
+      toast.success("Tarefa excluída!");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Erro ao excluir tarefa: ${error.message}`);
     },
   });
@@ -80,8 +89,9 @@ export const useTarefas = () => {
     isLoading,
     isError,
     error,
-    createTarefa,
-    updateStatus,
-    deleteTarefa,
+    createTarefa: (titulo: string) => createMutation.mutateAsync(titulo),
+    updateStatus: (id: string, status: string) =>
+      updateStatusMutation.mutateAsync({ id, status }),
+    deleteTarefa: (id: string) => deleteMutation.mutateAsync(id),
   };
 };
