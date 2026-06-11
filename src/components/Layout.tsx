@@ -1,7 +1,9 @@
 "use client";
 
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext/AuthContext";
+import { Button } from "@/components/ui/button";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +11,13 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -38,13 +47,13 @@ export function Layout({ children }: LayoutProps) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Link
-                to="/profile"
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="h-8 text-sm"
               >
-                <span>👤</span>
-                <span className="hidden md:inline">Profile</span>
-              </Link>
+                Sair
+              </Button>
             </div>
           </div>
         </div>
@@ -57,5 +66,4 @@ export function Layout({ children }: LayoutProps) {
 
 const navigationItems = [
   { href: "/", label: "Home", icon: "🏠" },
-  { href: "/profile", label: "Profile", icon: "👤" },
 ];
