@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext/AuthContext";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
-import Home from "./pages/Home";
+import { useTarefas } from "@/hooks/useTarefas";
 import ErrorPage from "./pages/ErrorPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
