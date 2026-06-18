@@ -14,8 +14,10 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ConfirmarEdicaoDialog } from "./ConfirmarEdicaoDialog";
 
+/**
+ * Schema de validação do título da tarefa.
+ */
 const schema = z.object({
   titulo: z.string().min(1, "Título obrigatório"),
 });
@@ -25,42 +27,70 @@ type FormData = z.infer<typeof schema>;
 interface EditarTarefaDialogProps {
   /** Título atual da tarefa */
   tituloAtual: string;
-  /** Callback para salvar o novo título */
+  /** Id da tarefa a ser atualizada */
+  id: string;
+  /** Callback que recebe o novo título após confirmação */
   onSalvar: (novoTitulo: string) => Promise<void>;
 }
 
 /**
- * Botão que abre um Dialog para editar o título da tarefa.
- * Exibe campo pré‑preenchido, validação via Zod e confirmação de salvar.
+ * Dialog de edição de tarefa com 2 etapas:
+ * 1️⃣ Edição do texto
+ * 2️⃣ Confirmação de salvar
+ *
+ * Todo estado fica dentro do componente e não abre componentes externos:
+ * - Falta de validação termina na tela de edição,
+ * - Usuário pode "Cancelar" na confirmação para voltar à edição
+ * - confirmação final chama onSalvar(id, novoTitulo) e fecha o Dialog.
  */
 export const EditarTarefaDialog: React.FC<EditarTarefaDialogProps> = ({
   tituloAtual,
+  id,
   onSalvar,
 }) => {
-  const [open, setOpen] = React.useState(false);
-  const [showConfirm, setShowConfirm] = React.useState(false);
-  const [pendingTitulo, setPendingTitulo] = React.useState<string>("");
+  // Estado interno que controla a etapa atual
+  const [etapa, setEtapa] = React.useState<"editar" | "confirmar">("editar");
+  const [pendingTitulo, setPendingTitulo] = React.useState<string>(tituloAtual);
+  const [loading, setLoading] = React.useState<boolean>(false);
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { titulo: tituloAtual },
   });
 
-  const onSubmit = async (data: FormData) => {
+  // Exportado pelo Dialog para abrir / fechar
+  const [open, setOpen] = React.useState(false);
+
+  // Função que migra do modo de edição para confirmação
+  const iniciarConfirmacao = async (data: FormData) => {
     setPendingTitulo(data.titulo);
-    setShowConfirm(true);
+    setEtapa("confirmar");
   };
 
-  const handleConfirm = async () => {
-    setShowConfirm(false);
-    setOpen(false);
-    await onSalvar(pendingTitulo);
-    reset({ titulo: pendingTitulo });
+  // Função que confirma a alteração realmente
+  const confirmarAlteracao = async () => {
+    setLoading(true);
+    try {
+      await onSalvar(pendingTitulo);
+      // Re‑inicializa estado para próximo uso
+      setEtapa("editar");
+      setLoading(false);
+      setOpen(false);
+      reset({ titulo: pendingTitulo }); // Seta o valor padrão para a próxima vez
+    } catch (e) {
+      setLoading(false);
+      // Se precisar exibir algum erro, pode usar toast ou estado
+    }
+  };
+
+  // Botão que volta para edição sem alterar dados
+  const voltarParaEdicao = () => {
+    setEtapa("editar");
   };
 
   return (
@@ -73,44 +103,70 @@ export const EditarTarefaDialog: React.FC<EditarTarefaDialogProps> = ({
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar tarefa</DialogTitle>
+          <DialogTitle>
+            {etapa === "editar" ? "Editar tarefa" : "Confirmar alteração"}
+          </DialogTitle>
         </DialogHeader>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="space-y-4"
-          onKeyPress={(e) => e.key === "Enter" && e.preventDefault()}
-        >
-          <div>
-            <Input
-              {...register("titulo")}
-              placeholder="Novo título"
-              disabled={isSubmitting || showConfirm}
-            />
-            {errors.titulo && (
-              <p className="text-sm text-red-500 mt-1">{errors.titulo.message}</p>
-            )}
+        {etapa === "editar" ? (
+          <form
+            onSubmit={handleSubmit(iniciarConfirmacao)}
+            className="space-y-4"
+            onKeyPress={(e) => e.key === "Enter" && e.preventDefault()}
+          >
+            <div>
+              <Input
+                {...register("titulo")}
+                placeholder="Novo título"
+                disabled={loading}
+              />
+              {errors.titulo && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.titulo.message}
+                </p>
+              )}
+            </div>
+
+            <DialogFooter className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setOpen(false)}
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Salvando..." : "Avançar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm">
+              Tem certeza que deseja salvar essa alteração no título da tarefa?{" "}
+              <strong>{pendingTitulo}</strong>
+            </p>
+            <DialogFooter className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={voltarParaEdicao}
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={confirmarAlteracao}
+                disabled={loading}
+              >
+                {loading ? "Confirmando..." : "Confirmar"}
+              </Button>
+            </DialogFooter>
           </div>
-
-          <DialogFooter className="flex justify-end space-x-2">
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting || showConfirm}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSubmitting || showConfirm}>
-              {isSubmitting ? "Salvando..." : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </form>
+        )}
       </DialogContent>
-
-      {showConfirm && (
-        <ConfirmarEdicaoDialog
-          tituloAtual={tituloAtual}
-          novoTitulo={pendingTitulo}
-          onConfirm={handleConfirm}
-          onCancel={() => setShowConfirm(false)}
-        />
-      )}
     </Dialog>
   );
 };
