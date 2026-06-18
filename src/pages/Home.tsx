@@ -17,7 +17,7 @@ import { TarefaItem } from "@/components/TarefaItem";
 
 const Home = () => {
   const { logout } = useAuth();
-  const { tarefasExcluidas } = useTarefas();
+  const { tarefasExcluidas, restaurarTarefa } = useTarefas(); // <-- desestruturado fora do map
 
   const handleLogout = async () => {
     await logout();
@@ -63,7 +63,7 @@ const Home = () => {
                   <Button
                     variant="outline"
                     className="mt-4 w-full"
-                    onClick={() => useTarefas().restaurarTarefa(tarefa.id)}
+                    onClick={() => restaurarTarefa(tarefa.id)} // <-- usa função desestruturada
                   >
                     Restaurar
                   </Button>
