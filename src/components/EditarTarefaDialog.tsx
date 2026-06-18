@@ -1,12 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ConfirmarEdicaoDialog } from "./ConfirmarEdicaoDialog";
 
 const schema = z.object({
   titulo: z.string().min(1, "Título obrigatório"),
@@ -23,13 +31,16 @@ interface EditarTarefaDialogProps {
 
 /**
  * Botão que abre um Dialog para editar o título da tarefa.
- * Exibe campo pré‑preenchido, validação via Zod e feedback de loading.
+ * Exibe campo pré‑preenchido, validação via Zod e confirmação de salvar.
  */
 export const EditarTarefaDialog: React.FC<EditarTarefaDialogProps> = ({
   tituloAtual,
   onSalvar,
 }) => {
   const [open, setOpen] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
+  const [pendingTitulo, setPendingTitulo] = React.useState<string>("");
+
   const {
     register,
     handleSubmit,
@@ -41,9 +52,15 @@ export const EditarTarefaDialog: React.FC<EditarTarefaDialogProps> = ({
   });
 
   const onSubmit = async (data: FormData) => {
-    await onSalvar(data.titulo);
+    setPendingTitulo(data.titulo);
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = async () => {
+    setShowConfirm(false);
     setOpen(false);
-    reset({ titulo: data.titulo });
+    await onSalvar(pendingTitulo);
+    reset({ titulo: pendingTitulo });
   };
 
   return (
@@ -53,31 +70,47 @@ export const EditarTarefaDialog: React.FC<EditarTarefaDialogProps> = ({
           Editar
         </Button>
       </DialogTrigger>
+
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar tarefa</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-4"
+          onKeyPress={(e) => e.key === "Enter" && e.preventDefault()}
+        >
           <div>
             <Input
               {...register("titulo")}
               placeholder="Novo título"
-              disabled={isSubmitting}
+              disabled={isSubmitting || showConfirm}
             />
             {errors.titulo && (
               <p className="text-sm text-red-500 mt-1">{errors.titulo.message}</p>
             )}
           </div>
+
           <DialogFooter className="flex justify-end space-x-2">
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting}>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSubmitting || showConfirm}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || showConfirm}>
               {isSubmitting ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {showConfirm && (
+        <ConfirmarEdicaoDialog
+          tituloAtual={tituloAtual}
+          novoTitulo={pendingTitulo}
+          onConfirm={handleConfirm}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
     </Dialog>
   );
 };

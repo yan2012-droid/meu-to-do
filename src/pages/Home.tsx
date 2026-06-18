@@ -13,11 +13,11 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/tabs";
-import { TarefaItem } from "@/components/TarefaItem";
+import { ConfirmarRestauracaoDialog } from "@/components/ConfirmarRestauracaoDialog";
 
 const Home = () => {
   const { logout } = useAuth();
-  const { tarefasExcluidas, restaurarTarefa } = useTarefas(); // <-- desestruturado fora do map
+  const { tarefasExcluidas, restaurarTarefa } = useTarefas();
 
   const handleLogout = async () => {
     await logout();
@@ -60,13 +60,11 @@ const Home = () => {
                   <p className="text-gray-500 text-sm mt-1">
                     Excluída em {new Date(tarefa.excluida_em!).toLocaleString("pt-BR")}
                   </p>
-                  <Button
-                    variant="outline"
-                    className="mt-4 w-full"
-                    onClick={() => restaurarTarefa(tarefa.id)} // <-- usa função desestruturada
-                  >
-                    Restaurar
-                  </Button>
+
+                  <ConfirmarRestauracaoDialog
+                    titulo={tarefa.titulo}
+                    onConfirm={() => restaurarTarefa(tarefa.id)}
+                  />
                 </div>
               ))}
             </div>
