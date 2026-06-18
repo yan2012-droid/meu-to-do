@@ -92,7 +92,7 @@ const Cadastro = () => {
             {error && (
               <p className="text-red-500 text-sm">{error}</p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full btn-primary" disabled={loading}>
               {loading ? "Cadastrando..." : "Cadastrar"}
             </Button>
           </form>
