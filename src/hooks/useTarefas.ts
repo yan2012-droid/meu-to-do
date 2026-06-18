@@ -12,13 +12,13 @@ export interface Tarefa {
 
 /**
  * Centraliza a lógica de tarefas: listagem, criação,
- * atualização de status e exclusão.
+ * atualização de status, edição de título e exclusão.
  * O RLS do Supabase garante que cada usuário só acessa as próprias tarefas.
  */
 export const useTarefas = () => {
   const queryClient = useQueryClient();
 
-  // LISTAGEM — sem filtro por user_id no código: o RLS já filtra
+  // LISTAGEM — o RLS já filtra por usuário
   const {
     data: tarefas = [],
     isLoading,
@@ -36,7 +36,7 @@ export const useTarefas = () => {
     },
   });
 
-  // CRIAÇÃO — não envia user_id (preenchido pelo default auth.uid() no banco)
+  // CRIAÇÃO
   const createMutation = useMutation({
     mutationFn: async (titulo: string) => {
       const { error } = await supabase.from("tarefas").insert({ titulo });
@@ -69,6 +69,24 @@ export const useTarefas = () => {
     },
   });
 
+  // EDIÇÃO DO TÍTULO
+  const updateTituloMutation = useMutation({
+    mutationFn: async ({ id, titulo }: { id: string; titulo: string }) => {
+      const { error } = await supabase
+        .from("tarefas")
+        .update({ titulo })
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tarefas"] });
+      toast.success("Título atualizado!");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao atualizar título: ${error.message}`);
+    },
+  });
+
   // EXCLUSÃO
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -92,6 +110,8 @@ export const useTarefas = () => {
     createTarefa: (titulo: string) => createMutation.mutateAsync(titulo),
     updateStatus: (id: string, status: string) =>
       updateStatusMutation.mutateAsync({ id, status }),
+    updateTitulo: (id: string, titulo: string) =>
+      updateTituloMutation.mutateAsync({ id, titulo }),
     deleteTarefa: (id: string) => deleteMutation.mutateAsync(id),
   };
 };

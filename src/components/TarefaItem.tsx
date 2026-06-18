@@ -8,20 +8,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTarefas } from "@/hooks/useTarefas";
+import { EditarTarefaDialog } from "./EditarTarefaDialog";
+import { ExcluirTarefaDialog } from "./ExcluirTarefaDialog";
 
-/** Badge colorido do status da tarefa. */
 const StatusBadge = ({ status }: { status: string }) => {
-  const config: Record<string, { label: string; classes: string }> = {
+  const config = {
     pendente: { label: "Pendente", classes: "bg-gray-200 text-gray-800" },
-    em_andamento: { label: "Em Andamento", classes: "bg-yellow-200 text-yellow-800" },
+    em_andamento: {
+      label: "Em Andamento",
+      classes: "bg-yellow-200 text-yellow-800",
+    },
     concluida: { label: "Concluída", classes: "bg-green-200 text-green-800" },
   };
-
-  const { label, classes } = config[status] ?? {
-    label: status,
-    classes: "bg-gray-200 text-gray-800",
-  };
-
+  const { label, classes } = config[status] || {};
   return (
     <span
       className={cn(
@@ -34,16 +33,20 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-interface Tarefa {
-  id: string;
-  titulo: string;
-  status: string;
-  created_at: string;
-}
+export const TarefaItem = ({ tarefa }: { tarefa: any }) => {
+  const { updateStatus, deleteTarefa, updateTitulo } = useTarefas();
 
-/** Um item da lista de tarefas: título, status, seletor de status e excluir. */
-export const TarefaItem = ({ tarefa }: { tarefa: Tarefa }) => {
-  const { updateStatus, deleteTarefa } = useTarefas();
+  const handleStatusChange = async (novoStatus: string) => {
+    await updateStatus(tarefa.id, novoStatus);
+  };
+
+  const handleDelete = async () => {
+    await deleteTarefa(tarefa.id);
+  };
+
+  const handleEdit = async (novoTitulo: string) => {
+    await updateTitulo(tarefa.id, novoTitulo);
+  };
 
   return (
     <div className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition-shadow">
@@ -55,11 +58,8 @@ export const TarefaItem = ({ tarefa }: { tarefa: Tarefa }) => {
             {new Date(tarefa.created_at).toLocaleDateString("pt-BR")}
           </p>
         </div>
-        <div className="flex items-center space-x-4">
-          <Select
-            value={tarefa.status}
-            onValueChange={(novoStatus) => updateStatus(tarefa.id, novoStatus)}
-          >
+        <div className="flex items-center space-x-2">
+          <Select value={tarefa.status} onValueChange={handleStatusChange}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -69,13 +69,11 @@ export const TarefaItem = ({ tarefa }: { tarefa: Tarefa }) => {
               <SelectItem value="concluida">Concluída</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            onClick={() => deleteTarefa(tarefa.id)}
-            variant="destructive"
-            className="h-8 text-sm"
-          >
-            Excluir
-          </Button>
+          <EditarTarefaDialog
+            tituloAtual={tarefa.titulo}
+            onSalvar={handleEdit}
+          />
+          <ExcluirTarefaDialog titulo={tarefa.titulo} onConfirm={handleDelete} />
         </div>
       </div>
     </div>
